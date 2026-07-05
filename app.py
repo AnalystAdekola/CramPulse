@@ -42,10 +42,12 @@ else:
     if not os.path.exists(PDF_FILE):
         st.error(f"📁 **Structural Asset Conflict:** Unable to find the target document file: `{PDF_FILE}`. Please check that this file is uploaded exactly to your root directory folder on GitHub.")
     else:
-        # 4. Cached Optimization Vector Core (Runs once per active app lifetime)
+        # 4. Cached Optimization Vector Core with Rate-Limit Throttling Loop
         @st.cache_resource
         def initialize_crampulse_vector_core():
-            with st.spinner("⏳ Vectorizing academic material. Scanning textbook structure..."):
+            import time  # Imported inside to ensure it is available in the cached scope
+            
+            with st.spinner("⏳ Vectorizing academic material. Scanning textbook structure safely..."):
                 loader = PyPDFLoader(PDF_FILE)
                 pages = loader.load()
                 
@@ -53,7 +55,29 @@ else:
                 chunks = text_splitter.split_documents(pages)
                 
                 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-                vector_db = Chroma.from_documents(chunks, embeddings)
+                
+                # --- RATE LIMIT BYPASS STRATEGY ---
+                # Initialize an empty Chroma vector store using the first chunk
+                vector_db = Chroma.from_documents([chunks[0]], embeddings)
+                
+                # Process the remaining chunks in small, controlled batches
+                batch_size = 10  # Reduced batch size to stay safely within Tier 1 constraints
+                progress_bar = st.progress(0, text="Initializing database setup...")
+                
+                for i in range(1, len(chunks), batch_size):
+                    current_batch = chunks[i:i + batch_size]
+                    
+                    # Add current batch to the existing vector database
+                    vector_db.add_documents(current_batch)
+                    
+                    # Calculate progress percentage safely
+                    progress_pct = min(int((i / len(chunks)) * 100), 100)
+                    progress_bar.progress(progress_pct, text=f"Processing segments {i}/{len(chunks)}... pacing API requests.")
+                    
+                    # Pause for 1.5 seconds between batches to reset the Tokens Per Minute window
+                    time.sleep(1.5)
+                
+                progress_bar.empty()  # Clear progress bar once completed successfully
                 return vector_db
 
         db = initialize_crampulse_vector_core()
