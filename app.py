@@ -115,7 +115,7 @@ else:
                     # Only grab top 3 blocks to aggressively minimize token throughput
                     retriever = db.as_retriever(search_kwargs={"k": 3})
                     relevant_docs = retriever.invoke(user_query)
-                    context_text = "\n\n".join([doc.page_content for doc in relevant_docs])
+                    context_text = "\n\n".join([str(doc.page_content) if hasattr(doc, 'page_content') else str(doc) for doc in relevant_docs])
                     
                     system_prompt = (
                         f"{mode_instruction}\n\n"
@@ -149,8 +149,14 @@ else:
                             "2. **Switch keys:** If your current key is attached to a locked or exhausted free-trial account, paste a working pre-funded API Key directly into the sidebar text field on the left."
                         )
                     
-                    # Interactive log display layout remains accessible even if the generation step failed
+                    # 7. Type-Safe Context Log Matrix
                     with st.expander("🔍 System Context Logs (Verify Reference Source Pages)"):
                         for i, doc in enumerate(relevant_docs):
-                            st.markdown(f"**Text Block Reference {i+1} — Page {doc.metadata.get('page', 'Unknown Location')}**")
-                            st.code(doc.page_content, lang="text")
+                            # Extract metadata metrics safely
+                            page_num = doc.metadata.get('page', 'Unknown Location') if hasattr(doc, 'metadata') else 'Unknown Location'
+                            
+                            st.markdown(f"**Text Block Reference {i+1} — Page {page_num}**")
+                            
+                            # Safely extract and cast the text string to prevent internal Streamlit TypeError crashes
+                            text_payload = doc.page_content if hasattr(doc, 'page_content') else doc
+                            st.code(str(text_payload), lang="text")
