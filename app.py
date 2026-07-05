@@ -7,7 +7,7 @@ from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 
-# 1. Page Configuration & Custom CSS Injection for a Premium Native App Look
+# 1. Page Configuration
 st.set_page_config(
     page_title="CramPulse — NOUN Precision Study Engine",
     page_icon="🎓",
@@ -15,26 +15,30 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Render the application header using safe HTML structure
-st.markdown("""
-    <div class="app-header" style="
+# 2. Injecting ALL CSS rules safely via a single clean raw string style block
+st.markdown(r"""
+    <style>
+    .stApp {
+        background-color: #F8FAFC;
+    }
+    .app-header {
         background: linear-gradient(135deg, #1A365D 0%, #006633 100%);
         padding: 25px;
         border-radius: 16px;
         color: white;
         margin-bottom: 25px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-    ">
-        <h1 style="color: white !important; margin: 0; font-family: 'Inter', sans-serif; font-weight: 700;">⚡ CramPulse</h1>
-        <p style="color: #E2E8F0; margin: 5px 0 0 0; font-size: 1.1rem;">Precision AI Study Engine & Exam Compliance Matrix for National Open University of Nigeria (NOUN)</p>
-    </div>
-""", unsafe_allowed_unsafe_html=True)
-
-# Injecting CSS rules safely by forcing them into standard raw string formatting (r""")
-st.markdown(r"""
-    <style>
-    .stApp {
-        background-color: #F8FAFC;
+    }
+    .app-header h1 { 
+        color: white !important; 
+        margin: 0 !important; 
+        font-family: 'Inter', sans-serif; 
+        font-weight: 700;
+    }
+    .app-header p { 
+        color: #E2E8F0 !important; 
+        margin: 5px 0 0 0 !important; 
+        font-size: 1.1rem;
     }
     .card {
         background-color: white;
@@ -72,7 +76,15 @@ st.markdown(r"""
     </style>
 """, unsafe_allowed_unsafe_html=True)
 
-# 2. SideBar API & Credentials Validation Layer
+# 3. Render the application header container using clean, style-free HTML elements
+st.markdown("""
+    <div class="app-header">
+        <h1>⚡ CramPulse</h1>
+        <p>Precision AI Study Engine & Exam Compliance Matrix for National Open University of Nigeria (NOUN)</p>
+    </div>
+""", unsafe_allowed_unsafe_html=True)
+
+# 4. SideBar API & Credentials Validation Layer
 st.sidebar.markdown("<h2 style='font-size:1.3rem; margin-top:0;'>⚙️ System Controls</h2>", unsafe_allowed_unsafe_html=True)
 
 # Checks for Streamlit Advanced Cloud Secrets configuration first to bypass manual input fields
@@ -103,7 +115,7 @@ else:
             </div>
         """, unsafe_allowed_unsafe_html=True)
     else:
-        # 3. Cached High-Performance Vectorization Loop
+        # 5. Cached High-Performance Vectorization Loop
         @st.cache_resource
         def initialize_crampulse_vector_core():
             with st.spinner("⏳ Vectorizing academic material. Scanning textbook structure..."):
@@ -119,7 +131,7 @@ else:
 
         db = initialize_crampulse_vector_core()
 
-        # 4. Interactive Modern Dashboard Layout Shell
+        # 6. Interactive Modern Dashboard Layout Shell
         col1, col2 = st.columns([1, 2], gap="large")
 
         with col1:
