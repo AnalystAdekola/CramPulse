@@ -4,7 +4,7 @@ import re
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -56,7 +56,7 @@ else:
                 chunks = text_splitter.split_documents(pages)
                 
                 # Load a completely free open-source model running on the CPU inside the container
-                local_embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+                local_embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
                 
                 # Build an in-memory database index instantly
                 vector_db = Chroma.from_documents(chunks, local_embeddings)
