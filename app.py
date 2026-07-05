@@ -7,6 +7,7 @@ from langchain_chroma import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
+import openai
 
 # 1. High-Level Page Configuration
 st.set_page_config(
@@ -36,7 +37,7 @@ else:
 PDF_FILE = "ENT 202 Introduction to Entrepreneurial Ventures_1.pdf"
 
 if not openai_api_key:
-    st.error("⚠️ **Authentication Token Required:** Please configure your OpenAI API Key inside the Streamlit Advanced Settings Secrets panel or input it via the sidebar control to enable the GPT-4o chat answer engine.")
+    st.error("⚠️ **Authentication Token Required:** Please configure your OpenAI API Key inside the Streamlit Advanced Settings Secrets panel or input it via the sidebar control to enable the chat answer engine.")
 else:
     os.environ["OPENAI_API_KEY"] = openai_api_key
 
@@ -47,18 +48,14 @@ else:
         @st.cache_resource
         def initialize_free_vector_core():
             with st.spinner("⏳ Parsing textbook structure with local embedding matrix (Free / No Rate Limits)..."):
-                # Load the PDF Document pages directly
                 loader = PyPDFLoader(PDF_FILE)
                 pages = loader.load()
                 
-                # Split content text into operational blocks
-                text_splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=150)
+                # Keep chunks focused to keep total context token weight low
+                text_splitter = RecursiveCharacterTextSplitter(chunk_size=600, chunk_overlap=120)
                 chunks = text_splitter.split_documents(pages)
                 
-                # Load a completely free open-source model running on the CPU inside the container
                 local_embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-                
-                # Build an in-memory database index instantly
                 vector_db = Chroma.from_documents(chunks, local_embeddings)
                 return vector_db
 
@@ -72,7 +69,6 @@ else:
                 st.subheader("📋 Context Router")
                 course_code = st.text_input("Active Course Code Registration:", value="ENT202")
                 
-                # Automated level engine calculation logic using regex strings
                 match = re.search(r'\d+', course_code)
                 course_level = int(match.group()) if match else 100
 
@@ -116,8 +112,8 @@ else:
 
             if user_query:
                 with st.spinner("Searching official course textbook layout matrix..."):
-                    # Pull top 4 similar text objects from database context
-                    retriever = db.as_retriever(search_kwargs={"k": 4})
+                    # Only grab top 3 blocks to aggressively minimize token throughput
+                    retriever = db.as_retriever(search_kwargs={"k": 3})
                     relevant_docs = retriever.invoke(user_query)
                     context_text = "\n\n".join([doc.page_content for doc in relevant_docs])
                     
@@ -130,17 +126,30 @@ else:
                     
                     prompt_template = ChatPromptTemplate.from_template(system_prompt)
                     
-                    # Target strict temperature 0.0 to prevent any creative filler or hallucination
-                    llm = ChatOpenAI(model="gpt-4o", temperature=0.0)
+                    # Using gpt-4o-mini provides significantly higher rate limits at a fraction of the cost
+                    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.0)
                     chain = prompt_template | llm
-                    response = chain.invoke({"context": context_text, "question": user_query})
                     
-                    # Display the final output in a beautifully formatted native container
-                    with st.container(border=True):
-                        st.markdown("### 🤖 CramPulse Engine Response Analysis")
-                        st.markdown(response.content)
+                    # 6. Safe Execution Block to Gracefully Handle API Issues
+                    try:
+                        response = chain.invoke({"context": context_text, "question": user_query})
+                        
+                        # Display the final output safely if successful
+                        with st.container(border=True):
+                            st.markdown("### 🤖 CramPulse Engine Response Analysis")
+                            st.markdown(response.content)
+                            
+                    except Exception as e:
+                        st.error("❌ **OpenAI API Key Allocation Limit Hit**")
+                        st.markdown(
+                            "> **What happened?** Your application successfully parsed your textbook locally, "
+                            "but OpenAI rejected the final answer compilation step due to a credential billing limit.\n\n"
+                            "**How to solve this right now:**\n"
+                            "1. **Check your balance:** Log into your [OpenAI API Dashboard](https://platform.openai.com/api-keys) and confirm your credit balance is greater than $0.00.\n"
+                            "2. **Switch keys:** If your current key is attached to a locked or exhausted free-trial account, paste a working pre-funded API Key directly into the sidebar text field on the left."
+                        )
                     
-                    # Interactive log display layout
+                    # Interactive log display layout remains accessible even if the generation step failed
                     with st.expander("🔍 System Context Logs (Verify Reference Source Pages)"):
                         for i, doc in enumerate(relevant_docs):
                             st.markdown(f"**Text Block Reference {i+1} — Page {doc.metadata.get('page', 'Unknown Location')}**")
